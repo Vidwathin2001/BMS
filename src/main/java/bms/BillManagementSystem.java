@@ -10,6 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -44,11 +45,28 @@ public class BillManagementSystem {
 	DefaultTableModel model;
 	JTable table;
 	JComboBox<String> listitem=new JComboBox<>();
+	JTextField txtemail=new JTextField(15);
+	JTextField txttotal=new JTextField(15);
+	JTextField txtgst=new JTextField(15);
+	JTextField txtgrand=new JTextField(15);
+	
+	static Connection connection;
+	
+	
+	
+	public static void get_connection() throws SQLException {
+		try {
+		connection=DriverManager.getConnection("jdbc:mysql://localhost:3308/bms","root","v123");
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+	}
 	
 	BillManagementSystem() throws SQLException{
 		jf=new JFrame("Bill Management System");
 		jf.setLayout(new BorderLayout());
 		get_connection();
+		getitem();
 		header.setLayout(new FlowLayout(FlowLayout.CENTER));
 		Font font1=new Font("Arial",Font.BOLD,30);
 		head.setFont(font1);
@@ -62,6 +80,8 @@ public class BillManagementSystem {
 		table=new JTable(model);
 		JScrollPane sp = new JScrollPane(table);
 		sp.setPreferredSize(new java.awt.Dimension(700, 200));
+		txtgst.setText("18");
+		txtgst.setEditable(false);
 		
 		m_menu=new JMenu("File");
 		m_menu1=new JMenu("Logout");
@@ -118,47 +138,106 @@ public class BillManagementSystem {
 		center.add(Box.createVerticalStrut(30));
 		center.add(sp);
 		
-		add.addActionListener(e->getitem());
+		center.add(Box.createVerticalStrut(30));		
+		botom.setLayout(new FlowLayout(FlowLayout.CENTER));
+		//botom.setBorder(BorderFactory.createEmptyBorder(100,10,10,10));
+		txttotal.setColumns(10);
+		botom.add(new JLabel("Total: "));
+		botom.add(txttotal);
+		botom.add(new JLabel("GST: "));
+		botom.add(txtgst);
+		botom.add(new JLabel("Grand Total: "));
+		botom.add(txtgrand);
+		center.add(botom);
+		//jf.add(botom,BorderLayout.SOUTH);
+		
+		add.addActionListener(e->load_itemsandprcie());
+		table.addMouseListener(new java.awt.event.MouseAdapter(){
+			public void mouseClicked(java.awt.event.MouseEvent e) {
+				int row=table.rowAtPoint(e.getPoint());
+				int column=table.columnAtPoint(e.getPoint());
+				
+				if(column==4) {
+					deleteRow(row);
+				}
+			}
+		});
 		
 		jf.add(wrapper,BorderLayout.CENTER);
 		jf.setJMenuBar(jmb);
-		jf.setSize(1600,860);
+		jf.setExtendedState(JFrame.MAXIMIZED_BOTH);
 		jf.setDefaultCloseOperation(jf.EXIT_ON_CLOSE);
 		jf.setVisible(true);
 	}
 
-	private void get_connection() throws SQLException {
-		try(Connection con=DriverManager.getConnection("jdbc:mysql://localhost:3306/bms","root","ctti")){
-			//JOptionPane.showMessageDialog(jf, "Connected");
-			String Query="select * from items";
-			Statement stmt=con.createStatement();
-			ResultSet rs=stmt.executeQuery(Query);
-			
-			while(rs.next()) {
-				String items=rs.getString("item_name");
-				listitem.addItem(items);
+public void load_itemsandprcie() {
+	try {
+		String Query="select * from items";
+		Statement stmt=connection.createStatement();
+		String item=(String) listitem.getSelectedItem();
+		String Quantity=qty.getText();
+		ResultSet rs=stmt.executeQuery(Query);
+		int price=0;
+		
+		while(rs.next()) {
+			if(rs.getString("item_name").equals(item)) {
+				price=rs.getInt("price");
 			}
-		}catch(SQLException e) {
-			e.printStackTrace();
+		}
+		int qnty=Integer.parseInt(Quantity);
+		double total=qnty*price;
+		
+		if(!Quantity.isEmpty()) {
+			model.addRow(new Object[] {item,Quantity,price,total,"Delete"});
+			qty.setText("");
+			calculate_total();
 		}
 		
+	}catch(Exception e) {
+		e.printStackTrace();
+	}
+}
+	
+	public void deleteRow(int row) {
+		model.removeRow(row);
+		calculate_total();
+	}
+
+	public void calculate_total() {
+		double sum=0;
+		for(int i=0;i<table.getRowCount();i++) {
+			sum+=Double.parseDouble(table.getValueAt(i,3).toString());
+		}
+		txttotal.setText(String.valueOf(sum));
+		
+		int gst=Integer.parseInt(txtgst.getText().toString());
+		Double gtotal=sum+((sum*gst)/100);
+		txtgrand.setText(String.valueOf(gtotal));
 	}
 
 	public void getitem() {
 		String item=(String) listitem.getSelectedItem();
 		String Quantity=qty.getText();
-		
-		if(!Quantity.isEmpty()) {
-			model.addRow(new Object[] {item,Quantity});
-			qty.setText("");
+		try {
+			//get_connection();
+			String Query="select * from items";
+			Statement stmt=connection.createStatement();
+			ResultSet rs=stmt.executeQuery(Query);
+			
+			while(rs.next()) {
+				listitem.addItem(rs.getString("item_name"));
+			}
+			
+		}catch(Exception e) {
+			e.printStackTrace();
 		}
+		
 	}
 	
 	public static void main(String[] args) throws SQLException {
 		try {
 			new BillManagementSystem();
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
