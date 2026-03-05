@@ -5,7 +5,9 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -49,14 +51,15 @@ public class BillManagementSystem {
 	JTextField txttotal=new JTextField(15);
 	JTextField txtgst=new JTextField(15);
 	JTextField txtgrand=new JTextField(15);
-	
+	JButton btnsave=new JButton("Save");
+	int billno=0;
 	static Connection connection;
 	
 	
 	
 	public static void get_connection() throws SQLException {
 		try {
-		connection=DriverManager.getConnection("jdbc:mysql://localhost:3308/bms","root","v123");
+		connection=DriverManager.getConnection("jdbc:mysql://localhost:3306/bms","root","ctti");
 		}catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -67,6 +70,7 @@ public class BillManagementSystem {
 		jf.setLayout(new BorderLayout());
 		get_connection();
 		getitem();
+		getBillNo();
 		header.setLayout(new FlowLayout(FlowLayout.CENTER));
 		Font font1=new Font("Arial",Font.BOLD,30);
 		head.setFont(font1);
@@ -138,9 +142,8 @@ public class BillManagementSystem {
 		center.add(Box.createVerticalStrut(30));
 		center.add(sp);
 		
-		center.add(Box.createVerticalStrut(30));		
 		botom.setLayout(new FlowLayout(FlowLayout.CENTER));
-		//botom.setBorder(BorderFactory.createEmptyBorder(100,10,10,10));
+	center.add(Box.createVerticalStrut(30));		
 		txttotal.setColumns(10);
 		botom.add(new JLabel("Total: "));
 		botom.add(txttotal);
@@ -148,8 +151,11 @@ public class BillManagementSystem {
 		botom.add(txtgst);
 		botom.add(new JLabel("Grand Total: "));
 		botom.add(txtgrand);
+		botom.add(btnsave);
 		center.add(botom);
-		//jf.add(botom,BorderLayout.SOUTH);
+		
+		btnsave.addActionListener(e->saveDetails());
+		
 		
 		add.addActionListener(e->load_itemsandprcie());
 		table.addMouseListener(new java.awt.event.MouseAdapter(){
@@ -168,6 +174,37 @@ public class BillManagementSystem {
 		jf.setExtendedState(JFrame.MAXIMIZED_BOTH);
 		jf.setDefaultCloseOperation(jf.EXIT_ON_CLOSE);
 		jf.setVisible(true);
+	}
+	
+	public void saveDetails() {
+		if(name==null) {
+			JOptionPane.showMessageDialog(jf,"Please enter name");return;
+		}else if(ph==null) {
+			JOptionPane.showMessageDialog(jf,"Please enter phone number");return;
+		}else if(Addr==null) {
+			JOptionPane.showMessageDialog(jf,"Please enter Address");return;
+		}else if(txtgrand==null) {
+			JOptionPane.showMessageDialog(jf,"Please add items and quantity");return;
+		}
+		java.util.Date sdate=(java.util.Date) date.getValue();
+		java.sql.Date sqldate=new java.sql.Date(sdate.getTime());
+		try {
+			String query="insert into bills values(?,?,?,?,?,?,?,?);";
+			PreparedStatement stmt=connection.prepareStatement(query);
+			stmt.setInt(1, Integer.parseInt(txtbno.getText()));
+			stmt.setDate(2, sqldate);
+			stmt.setString(3, name.getText());
+			stmt.setString(4, ph.getText());
+			stmt.setString(5, Addr.getText());
+			stmt.setString(6, txttotal.getText());
+			stmt.setInt(7, Integer.parseInt(txtgst.getText()));
+			stmt.setString(8, txtgrand.getText());
+			
+			stmt.executeUpdate();
+			JOptionPane.showMessageDialog(jf, "Saved");
+		}catch(SQLException e) {
+			e.printStackTrace();
+		}
 	}
 
 public void load_itemsandprcie() {
@@ -219,7 +256,6 @@ public void load_itemsandprcie() {
 		String item=(String) listitem.getSelectedItem();
 		String Quantity=qty.getText();
 		try {
-			//get_connection();
 			String Query="select * from items";
 			Statement stmt=connection.createStatement();
 			ResultSet rs=stmt.executeQuery(Query);
@@ -232,6 +268,23 @@ public void load_itemsandprcie() {
 			e.printStackTrace();
 		}
 		
+	}
+	
+	public void getBillNo() {
+		try {
+			String query="select no from lastbillno";
+			Statement stmt=connection.createStatement();
+			ResultSet rs=stmt.executeQuery(query);
+			
+			while(rs.next()) {
+				billno=rs.getInt("no");
+			}
+			if(billno>=0) {
+				txtbno.setText(String.valueOf(billno)+1);
+			}
+		}catch(SQLException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public static void main(String[] args) throws SQLException {
